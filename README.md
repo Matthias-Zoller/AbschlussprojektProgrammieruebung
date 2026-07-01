@@ -2,6 +2,8 @@
 
 Dieses Repository beinhaltet den Code für das Abschlussprojekt: Eine Streamlit-Webanwendung für Kardiologen zur Verwaltung von Patienten und automatisierten Analyse von EKG-Daten mithilfe von Machine Learning.
 
+🌐 **Live App:** https://abschlussprojektprogrammieruebung-eg3e34f2nqjrrkx9b5jgbd.streamlit.app/
+
 ---
 
 ## Repository herunterladen
@@ -9,7 +11,7 @@ Dieses Repository beinhaltet den Code für das Abschlussprojekt: Eine Streamlit-
 Zuerst das Repository klonen:
 
 ```bash
-git clone https://github.com/<Luis-Walcher>/AbschlussprojektProgrammieruebung.git
+git clone https://github.com/Matthias-Zoller/AbschlussprojektProgrammieruebung.git
 ```
 
 Dann in den Projektordner wechseln:
@@ -26,8 +28,6 @@ Benötigt:
 
 - Python 3.11+
 - PDM
-- MySQL Server 8.0+
-- MySQL Workbench (empfohlen)
 - Git
 
 ### PDM installieren
@@ -62,43 +62,30 @@ pdm install
 Falls die Pakete manuell installiert werden müssen:
 
 ```bash
-pdm add streamlit pymysql pandas numpy scipy scikit-learn plotly reportlab joblib kaleido
-```
-
-### Einzelne Pakete installieren
-
-```bash
-pdm add paketname
-```
-
-Beispiele:
-
-```bash
-pdm add streamlit
-pdm add scikit-learn
-pdm add reportlab
+pdm add streamlit sqlalchemy pandas numpy scipy scikit-learn plotly reportlab joblib matplotlib psycopg2-binary
 ```
 
 ---
 
-## Datenbank einrichten
+## Datenbank einrichten (Supabase)
 
-In MySQL Workbench eine neue Datenbank anlegen und folgende SQL-Befehle ausführen:
+Die App verwendet **Supabase** als Cloud-Datenbank (PostgreSQL).
+
+1. Account erstellen auf [supabase.com](https://supabase.com)
+2. Neues Projekt erstellen
+3. Folgende Tabellen anlegen:
 
 ```sql
-CREATE DATABASE abschlussproject_mci;
-USE abschlussproject_mci;
-
 CREATE TABLE patient (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    Vorname VARCHAR(45),
-    Nachname VARCHAR(45),
-    Geburtsdatum DATE,
-    Gender VARCHAR(45)
+    id SERIAL PRIMARY KEY,
+    "Vorname" VARCHAR(45),
+    "Nachname" VARCHAR(45),
+    "Geburtsdatum" VARCHAR(45),
+    "Gender" VARCHAR(45)
 );
 
 CREATE TABLE ekg_records (
-    idekg_records INT AUTO_INCREMENT PRIMARY KEY,
+    idekg_records SERIAL PRIMARY KEY,
     file_path VARCHAR(255),
     sampling_rate INT,
     recording_date TIMESTAMP,
@@ -107,40 +94,37 @@ CREATE TABLE ekg_records (
 );
 
 CREATE TABLE diagnosis_result (
-    iddiagnosis_result INT AUTO_INCREMENT PRIMARY KEY,
+    iddiagnosis_result SERIAL PRIMARY KEY,
     ekg_id INT,
-    heart_rate DOUBLE,
+    heart_rate DOUBLE PRECISION,
     max_heart_rate INT,
-    rr_mean DOUBLE,
-    rr_std DOUBLE,
-    hrv DOUBLE,
+    rr_mean DOUBLE PRECISION,
+    rr_std DOUBLE PRECISION,
+    hrv DOUBLE PRECISION,
     predicted_class VARCHAR(45),
-    confidence DOUBLE,
+    confidence DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (ekg_id) REFERENCES ekg_records(idekg_records)
 );
 
 CREATE TABLE reports (
-    report_id INT AUTO_INCREMENT PRIMARY KEY,
-    result_id INT,
+    idreports SERIAL PRIMARY KEY,
+    ekg_id INT,
+    diagnosis_id INT,
     pdf_path VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (result_id) REFERENCES diagnosis_result(iddiagnosis_result)
+    FOREIGN KEY (ekg_id) REFERENCES ekg_records(idekg_records),
+    FOREIGN KEY (diagnosis_id) REFERENCES diagnosis_result(iddiagnosis_result)
 );
 ```
 
 ### Datenbankverbindung konfigurieren
 
-In `database/database_connection.py` die Zugangsdaten anpassen:
+Eine Datei `.streamlit/secrets.toml` erstellen:
 
-```python
-connection = pymysql.connect(
-    host="localhost",
-    user="root",
-    password="dein_passwort",
-    database="abschlussproject_mci",
-    port=3306
-)
+```toml
+[connections.supabase]
+url = "postgresql://postgres.<project-id>:<passwort>@aws-0-eu-west-3.pooler.supabase.com:5432/postgres"
 ```
 
 ---
@@ -150,15 +134,6 @@ connection = pymysql.connect(
 Vor dem ersten Start muss das Machine Learning Modell trainiert werden.
 
 EKG-Trainingsdaten (CSV-Dateien) in den `data/` Ordner legen. Die Dateinamen müssen das Label enthalten:
-
-```
-data/
-    patient_001_normal.csv
-    patient_002_tachycardia.csv
-    patient_003_bradycardia.csv
-    patient_004_arrhythmia.csv
-    patient_005_noisy.csv
-```
 
 Dann das Modell trainieren:
 
@@ -180,6 +155,22 @@ Die App öffnet sich automatisch im Browser unter `http://localhost:8501`.
 
 ---
 
+## Deployment auf Streamlit Cloud
+
+1. Repository auf GitHub pushen
+2. Auf [share.streamlit.io](https://share.streamlit.io) anmelden
+3. Repository auswählen, Main file: `app.py`
+4. Unter **Advanced settings → Secrets** einfügen:
+
+```toml
+[connections.supabase]
+url = "postgresql://postgres.<project-id>:<passwort>@aws-0-eu-west-3.pooler.supabase.com:5432/postgres"
+```
+
+5. Deploy klicken
+
+---
+
 ## Über diese App
 
 Diese Anwendung wurde mit **Streamlit** entwickelt und bietet folgende Hauptfunktionen:
@@ -189,6 +180,3 @@ Diese Anwendung wurde mit **Streamlit** entwickelt und bietet folgende Hauptfunk
 3. **Automatische Analyse:** Das EKG-Signal wird verarbeitet, R-Peaks werden erkannt und Features wie Herzfrequenz, HRV und RR-Intervall werden berechnet.
 4. **Machine Learning Diagnose:** Ein trainiertes Random Forest Modell klassifiziert das EKG automatisch (Normal, Tachykardie, Bradykardie, Arrhythmie, Verrauscht) und gibt einen Konfidenzwert aus.
 5. **PDF-Report:** Ein professioneller Bericht mit EKG-Visualisierung, Analyseergebnissen und ML-Diagnose kann generiert und heruntergeladen werden.
-
-
-
