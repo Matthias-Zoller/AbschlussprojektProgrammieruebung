@@ -143,14 +143,14 @@ def dashboard_page():
         ekg_key = f"saved_ekg_{selected_ekg['idekg_records']}"
         if not st.session_state.get(ekg_key):
             result_data = {
-                "ekg_id":          selected_ekg["idekg_records"],
-                "heart_rate":      features["heart_rate"],
-                "max_heart_rate":  features["max_heart_rate"],
-                "rr_mean":         features["rr_mean"],
-                "rr_std":          features["hrv"],
-                "hrv":             features["hrv"],
-                "predicted_class": result["predicted_class"],
-                "confidence":      result["confidence"]
+                "ekg_id":          int(selected_ekg["idekg_records"]),
+                "heart_rate":      float(features["heart_rate"]),
+                "max_heart_rate":  float(features["max_heart_rate"]),
+                "rr_mean":         float(features["rr_mean"]),
+                "rr_std":          float(features["hrv"]),
+                "hrv":             float(features["hrv"]),
+                "predicted_class": str(result["predicted_class"]),
+                "confidence":      float(result["confidence"])
             }
             result_id = save_analysis_result(result_data)
             st.session_state[ekg_key] = result_id
