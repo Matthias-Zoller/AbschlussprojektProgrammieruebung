@@ -45,7 +45,6 @@ def dashboard_page():
         st.warning("Keine Patienten vorhanden. Bitte zuerst einen Patienten anlegen.")
         return
 
-    # DataFrame in Liste von Dicts umwandeln
     persons = persons_df.to_dict("records")
 
     col1, col2 = st.columns(2)
@@ -174,7 +173,6 @@ def dashboard_page():
 
             pdf_path = str(report_dir / f"report_patient_{patient_id}_{selected_ekg['idekg_records']}.pdf")
 
-            # Patient als Tuple für generate_pdf
             patient_tuple = (
                 selected_patient["id"],
                 selected_patient["Vorname"],
@@ -187,7 +185,7 @@ def dashboard_page():
                 patient=patient_tuple,
                 features=features,
                 result=result,
-                ekg_fig=fig,
+                ekg_df=ekg.df,
                 output_path=pdf_path
             )
 
@@ -200,7 +198,7 @@ def dashboard_page():
                 )
 
             save_report({
-                "ekg_id":       selected_ekg["idekg_records"],
+                "ekg_id":       int(selected_ekg["idekg_records"]),
                 "diagnosis_id": st.session_state["result_id"],
                 "pdf_path":     pdf_path
             })

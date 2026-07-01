@@ -4,24 +4,54 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
 from datetime import datetime
-import plotly.io as pio
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import tempfile
 import os
+import pandas as pd
+
+
+def plot_ekg_matplotlib(df: pd.DataFrame, tmp_path: str) -> None:
+    """
+    Zeichnet EKG Signal mit Matplotlib und speichert es als PNG.
+    Wird für den PDF Export verwendet da kaleido auf Streamlit Cloud
+    keinen Chrome Browser findet.
+
+    Args:
+        df (pd.DataFrame): DataFrame mit Spalten 'time', 'voltage', 'is_peak'
+        tmp_path (str): Pfad zum Speichern der PNG Datei
+    """
+    fig, ax = plt.subplots(figsize=(12, 3))
+
+    ax.plot(df['time'], df['voltage'], color='#1a56db', linewidth=0.8, label='Signal')
+
+    peaks = df[df['is_peak']]
+    ax.scatter(peaks['time'], peaks['voltage'], color='red', s=30, zorder=5, label='R-Peak')
+
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('Voltage (mV)')
+    ax.set_title('ECG Visualization — Lead II')
+    ax.legend(loc='upper right')
+    ax.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig(tmp_path, dpi=150, bbox_inches='tight')
+    plt.close()
 
 
 def generate_pdf(
     patient: tuple,
     features: dict,
     result: dict,
-    ekg_fig,
+    ekg_df: pd.DataFrame,
     output_path: str
 ) -> str:
     """
     Generiert einen professionellen PDF-Bericht für eine EKG-Analyse.
 
-    Erstellt ein mehrseitiges PDF-Dokument mit Patientendaten,
-    EKG-Visualisierung, Analyseergebnissen und ML-Diagnose.
-    Der Bericht kann vom Arzt heruntergeladen und archiviert werden.
+    Erstellt ein PDF-Dokument mit Patientendaten, EKG-Visualisierung,
+    Analyseergebnissen und ML-Diagnose.
 
     Args:
         patient (tuple): Patientendatensatz aus der Datenbank.
@@ -36,13 +66,11 @@ def generate_pdf(
                        Erwartete Schlüssel:
                            - predicted_class (str): Diagnoseklasse
                            - confidence (float): Konfidenzwert in %
-        ekg_fig (plotly.graph_objects.Figure): Plotly Figure des EKG-Signals
-                                               wird als PNG in das PDF eingebettet.
-        output_path (str): Dateipfad wo das PDF gespeichert werden soll,
-                           z.B. "reports/report_patient_1.pdf"
+        ekg_df (pd.DataFrame): DataFrame mit EKG Daten (time, voltage, is_peak)
+        output_path (str): Dateipfad wo das PDF gespeichert werden soll.
 
     Returns:
-        str: Pfad zur erstellten PDF-Datei (gleich wie output_path).
+        str: Pfad zur erstellten PDF-Datei.
     """
 
     doc = SimpleDocTemplate(
@@ -109,11 +137,11 @@ def generate_pdf(
     # ── EKG Grafik ───────────────────────────────────────
     story.append(Paragraph("EKG Visualisierung — Lead II", heading_style))
 
-    # Plotly Figure temporär als PNG speichern und ins PDF einbetten
+    # Matplotlib Plot als temporäres PNG speichern
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         tmp_path = tmp.name
 
-    pio.write_image(ekg_fig, tmp_path, width=800, height=300)
+    plot_ekg_matplotlib(ekg_df, tmp_path)
     story.append(Image(tmp_path, width=16*cm, height=6*cm))
     story.append(Spacer(1, 0.3*cm))
 
@@ -163,20 +191,7 @@ def generate_pdf(
     story.append(ml_table)
     story.append(Spacer(1, 0.5*cm))
 
-    # ── Disclaimer ───────────────────────────────────────
-    disclaimer_style = ParagraphStyle(
-        "Disclaimer",
-        parent=normal_style,
-        fontSize=8,
-        textColor=colors.grey
-    )
-    story.append(Paragraph(
-        "Hinweis: Dieser Bericht wurde automatisch generiert und dient nur zur "
-        "Entscheidungsunterstützung. Er ersetzt keine ärztliche Diagnose.",
-        disclaimer_style
-    ))
-
-    # PDF erstellen und temporäre PNG-Datei löschen
+    # PDF erstellen
     doc.build(story)
     os.unlink(tmp_path)
 
