@@ -63,9 +63,9 @@ def dashboard_page():
         st.markdown(f"**Gender:** {selected_patient['Gender']}")
 
     with col2:
-        st.subheader("ECG File Upload")
+        st.subheader("EKG File Upload")
         uploaded_file = st.file_uploader(
-            "Upload ECG file (.csv)",
+            "Upload EKG file (.csv)",
             type=["csv"]
         )
 
@@ -80,6 +80,7 @@ def dashboard_page():
                 create_ekg_data(str(file_path), patient_id)
                 st.session_state[f"uploaded_{uploaded_file.name}"] = True
                 st.success(f"Datei gespeichert: {file_path}")
+                st.rerun()
 
     # EKG auswählen
     st.divider()
@@ -154,6 +155,7 @@ def dashboard_page():
             result_id = save_analysis_result(result_data)
             st.session_state[ekg_key] = result_id
             st.success("Analyse automatisch gespeichert!")
+            st.rerun()
 
         st.session_state["result_id"] = st.session_state.get(ekg_key)
 
@@ -224,15 +226,18 @@ def patients_page():
     sex = st.selectbox("Gender", ["Male", "Female", "Diverse"])
 
     if st.button("Create Patient"):
-        patient_data = {
-            "vorname":      first_name,
-            "nachname":     last_name,
-            "geburtsdatum": birth_date,
-            "gender":       sex
-        }
-        create_patient(patient_data)
-        st.success("Patient erfolgreich angelegt!")
-
+        if not first_name or not last_name:
+            st.warning("Bitte Vor- und Nachname eingeben!")
+        else:
+            patient_data = {
+                "vorname":      first_name,
+                "nachname":     last_name,
+                "geburtsdatum": str(birth_date),
+                "gender":       sex
+            }
+            create_patient(patient_data)
+            st.success("Patient erfolgreich angelegt!")
+            st.rerun()
 
 if __name__ == "__main__":
     main()

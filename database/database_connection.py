@@ -23,7 +23,7 @@ def get_all_patients():
                       Spalten: id, Vorname, Nachname, Geburtsdatum, Gender
     """
     conn = get_conn()
-    return conn.query('SELECT * FROM patient;')
+    return conn.query('SELECT * FROM patient;', ttl=0)
 
 
 def create_patient(patient_dict):
@@ -182,28 +182,6 @@ def save_report(report_data: dict) -> int:
         result = s.execute(sql, report_data)
         s.commit()
         return result.fetchone()[0]
-
-
-def get_all_reports():
-    """
-    Gibt alle gespeicherten Reports mit Patienten- und Diagnoseinformationen zurück.
-
-    Returns:
-        pd.DataFrame: DataFrame mit allen Reports und verknüpften Daten.
-                      Spalten: idreports, pdf_path, created_at,
-                               Vorname, Nachname, predicted_class, confidence
-    """
-    conn = get_conn()
-    return conn.query("""
-        SELECT r.idreports, r.pdf_path, r.created_at,
-               p."Vorname", p."Nachname",
-               d.predicted_class, d.confidence
-        FROM reports r
-        JOIN diagnosis_result d ON r.diagnosis_id = d.iddiagnosis_result
-        JOIN ekg_records e ON r.ekg_id = e.idekg_records
-        JOIN patient p ON e.patient_id = p.id
-        ORDER BY r.created_at DESC;
-    """)
 
 
 if __name__ == "__main__":
